@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>⚡ 快速反应训练</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --card: #1a1a2e;
+    --accent: #ff6b35;
+    --accent2: #00d4aa;
+    --accent3: #7c4dff;
+    --text: #e8e8f0;
+    --text-dim: #8888a0;
+    --danger: #ff4757;
+    --radius: 14px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .header {
+    padding: 14px 16px 3px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 21px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header p { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+  /* ===== 指令卡片 ===== */
+  .command-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 16px;
+    min-height: 0;
+    transition: background .3s;
+  }
+  .command-stage.bg-red { background: #cc2233; }
+  .command-stage.bg-blue { background: #2255cc; }
+  .command-stage.bg-green { background: #22aa44; }
+  .command-stage.bg-yellow { background: #ccaa22; }
+  .command-stage.bg-flash {
+    animation: flashBg .15s 4;
+  }
+  @keyframes flashBg {
+    0%,100% { background: transparent; }
+    50% { background: #fff; }
+  }
+
+  .command-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 400px;
+    padding: 30px 20px;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,.5);
+    transition: background .08s;
+    position: relative;
+  }
+  .command-card.flash { background: #ff6b35; }
+
+  .command-card .command {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.3;
+    min-height: 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    word-break: break-word;
+    gap: 8px;
+  }
+  .command-card .command .emoji-big { font-size: 50px; }
+  .command-card .command.pop-in {
+    animation: popCmd .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popCmd {
+    0% { transform: scale(.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* 方向箭头覆盖 */
+  .arrow-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 200;
+    background: rgba(0,0,0,.4);
+  }
+  .arrow-overlay .big-arrow {
+    font-size: 120px;
+    animation: arrowPop .25s cubic-bezier(.34,1.56,.64,1);
+    text-shadow: 0 0 30px rgba(255,255,255,.3);
+  }
+  @keyframes arrowPop {
+    0% { transform: scale(.3); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* 语音 */
+  .voice-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,.04);
+  }
+  .voice-indicator.speaking { color: var(--accent2); background: rgba(0,212,170,.1); }
+  .voice-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; display: inline-block;
+  }
+  .voice-indicator.speaking .voice-dot {
+    animation: voicePulse .4s infinite alternate;
+  }
+  @keyframes voicePulse {
+    0% { opacity: .3; transform: scale(.8); }
+    100% { opacity: 1; transform: scale(1.4); }
+  }
+
+  .counter {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 1px 0 2px;
+    flex-shrink: 0;
+  }
+  .counter span { color: var(--accent2); font-weight: 700; }
+
+  /* ===== 可滚动区 ===== */
+  .scroll-area {
+    flex-shrink: 1;
+    overflow-y: auto;
+    padding: 0 16px 3px;
+    min-height: 0;
+  }
+  .scroll-area::-webkit-scrollbar { width: 3px; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 3px; }
+
+  /* ===== 速度 ===== */
+  .speed-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+  .speed-btn {
+    flex: 1;
+    padding: 5px 0;
+    border-radius: 8px;
+    border: 1.5px solid transparent;
+    background: var(--card);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .speed-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,.12); }
+  .speed-btn:active { transform: scale(.95); }
+
+  /* ===== 语音语速 ===== */
+  .voice-speed-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+  .voice-speed-btn {
+    flex: 1;
+    padding: 4px 0;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--card);
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .voice-speed-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(0,212,170,.08); }
+  .voice-speed-btn:active { transform: scale(.95); }
+
+  /* ===== 滑块 ===== */
+  .slider-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .slider-group {
+    flex: 1;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 6px 12px 9px;
+  }
+  .slider-group .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1px;
+  }
+  .slider-group .slider-header label { font-size: 10px; color: var(--text-dim); }
+  .slider-group .slider-header .slider-val {
+    font-size: 13px; font-weight: 800; color: var(--accent2); min-width: 30px; text-align: right;
+  }
+  .slider-group input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255,255,255,.1);
+    outline: none;
+  }
+  .slider-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px rgba(255,107,53,.4);
+  }
+
+  /* ===== 指令库 ===== */
+  .libs-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 6px;
+  }
+  .libs-section .libs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  .libs-section .libs-header .libs-title { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+  .libs-section .libs-header .active-count { font-size: 10px; color: var(--accent2); }
+
+  .lib-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+  .lib-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px 4px 6px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1.5px solid rgba(255,255,255,.08);
+    background: transparent;
+    color: var(--text-dim);
+    line-height: 1.2;
+  }
+  .lib-chip:active { transform: scale(.94); }
+  .lib-chip.on { border-color: var(--accent2); color: var(--accent2); background: rgba(0,212,170,.08); }
+  .lib-chip .chip-badge {
+    font-size: 9px;
+    background: rgba(255,255,255,.06);
+    padding: 0 4px;
+    border-radius: 5px;
+    line-height: 15px;
+  }
+  .lib-chip.on .chip-badge { background: rgba(0,212,170,.15); }
+  .lib-chip.custom-chip { border-style: dashed; color: var(--accent3); }
+  .lib-chip.custom-chip.on { border-color: var(--accent3); color: var(--accent3); background: rgba(124,77,255,.1); }
+
+  /* 展开详情 */
+  .lib-detail { display: none; margin-top: 5px; border-top: 1px solid rgba(255,255,255,.06); padding-top: 6px; }
+  .lib-detail.open { display: block; }
+  .lib-detail .cmd-list { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
+  .lib-detail .cmd-item {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 2px 6px 2px 5px; border-radius: 5px; font-size: 10px; background: rgba(255,255,255,.04);
+  }
+  .lib-detail .cmd-item .del-cmd {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px; border-radius: 50%; border: none;
+    background: transparent; color: var(--danger); font-size: 11px;
+    cursor: pointer; opacity: .5; padding: 0; line-height: 1;
+  }
+  .lib-detail .cmd-item .del-cmd:hover { opacity: 1; }
+  .lib-detail .add-cmd-row { display: flex; gap: 3px; }
+  .lib-detail .add-cmd-row input {
+    flex: 1; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 5px; padding: 3px 7px; color: var(--text); font-size: 10px; outline: none; min-width: 0;
+  }
+  .lib-detail .add-cmd-row input:focus { border-color: var(--accent); }
+  .lib-detail .add-cmd-row button {
+    padding: 3px 8px; border-radius: 5px; border: none;
+    background: var(--accent2); color: #000; font-size: 10px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* ===== 底部 ===== */
+  .bottom-bar {
+    padding: 5px 16px 16px;
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .btn {
+    border: none; border-radius: 14px; padding: 14px 20px;
+    font-size: 16px; font-weight: 800; cursor: pointer;
+    transition: all .12s; flex: 1; color: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
+  .btn:active { transform: scale(.94); }
+  .btn-start  { background: linear-gradient(135deg, var(--accent), #e85d2c); }
+  .btn-stop   { background: linear-gradient(135deg, var(--danger), #c0392b); }
+  .btn-secondary {
+    background: var(--card); color: var(--text);
+    flex: 0 0 auto; padding: 14px 16px;
+  }
+
+  @media(min-width:500px){
+    .command-card { max-width: 480px; padding: 40px 28px; }
+    .command-card .command { font-size: 40px; }
+    .command-card .command .emoji-big { font-size: 66px; }
+    .arrow-overlay .big-arrow { font-size: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ 快速反应训练</h1>
+  <p>指令自动切换 · 语音朗读 · 视觉触发</p>
+</div>
+
+<!-- 主展示区 -->
+<div class="command-stage" id="stage">
+  <div class="command-card" id="commandCard">
+    <div class="command" id="commandDisplay">
+      <span class="emoji-big">👆</span>
+      <span class="cmd-text">按「开始」</span>
+    </div>
+  </div>
+  <div class="voice-indicator" id="voiceIndicator">
+    <span class="voice-dot"></span>
+    <span id="voiceLabel">语音就绪</span>
+  </div>
+</div>
+
+<div class="counter">已切换 <span id="cmdCount">0</span> 个指令</div>
+
+<!-- 可滚动控制区 -->
+<div class="scroll-area">
+
+  <!-- 切换速度 -->
+  <div class="speed-row">
+    <button class="speed-btn" data-speed="very-slow">🐢 极慢</button>
+    <button class="speed-btn" data-speed="slow">🚶 慢速</button>
+    <button class="speed-btn active" data-speed="medium">⚡ 中等</button>
+    <button class="speed-btn" data-speed="fast">🔥 快速</button>
+    <button class="speed-btn" data-speed="insane">💥 极速</button>
+  </div>
+
+  <!-- 语音语速 -->
+  <div class="voice-speed-row">
+    <button class="voice-speed-btn" data-rate="0.7">🐢 慢速</button>
+    <button class="voice-speed-btn active" data-rate="1.0">🔊 标准</button>
+    <button class="voice-speed-btn" data-rate="1.3">⚡ 稍快</button>
+    <button class="voice-speed-btn" data-rate="1.6">🔥 快速</button>
+    <button class="voice-speed-btn" data-rate="2.0">💥 极速</button>
+  </div>
+
+  <!-- 时间滑块 -->
+  <div class="slider-row">
+    <div class="slider-group">
+      <div class="slider-header">
+        <label>⏱️ 最短</label>
+        <span class="slider-val" id="minDisplay">2.0s</span>
+      </div>
+      <input type="range" id="minSlider" min="0.5" max="20" step="0.1" value="2">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <label>⏱️ 最长</label>
+        <span class="slider-val" id="maxDisplay">4.0s</span>
+      </div>
+      <input type="range" id="maxSlider" min="0.5" max="30" step="0.1" value="4">
+    </div>
+  </div>
+
+  <!-- 指令库 -->
+  <div class="libs-section">
+    <div class="libs-header">
+      <span class="libs-title">📚 指令库</span>
+      <span class="active-count" id="libActiveCount">已选 26 条</span>
+    </div>
+    <div class="lib-grid" id="libGrid"></div>
+    <div class="lib-detail" id="libDetail"></div>
+  </div>
+
+</div>
+
+<!-- 底部 -->
+<div class="bottom-bar">
+  <button class="btn btn-start" id="btnStart">▶ 开始</button>
+  <button class="btn btn-secondary" id="btnAddLib">➕</button>
+</div>
+
+<script>
+// ============================================================
+//  内置指令库
+// ============================================================
+const BUILTIN_LIBS = {
+  basic: {
+    label: '⚡ 基础反应', emoji: '⚡', builtin: true,
+    items: ['原地高抬腿','快速深蹲','原地开合跳','快速踏步','原地小碎步','快速出拳'],
+  },
+  direction: {
+    label: '🧭 方向移动', emoji: '🧭', builtin: true,
+    items: ['向左跨步','向右跨步','向前冲刺一步','向后撤步','左转身','右转身'],
+  },
+  body: {
+    label: '🤸 身体部位', emoji: '🤸', builtin: true,
+    items: ['摸左脚','摸右脚','摸头顶','摸膝盖','左手碰右肩','右手碰左膝'],
+  },
+  combo: {
+    label: '🎯 组合挑战', emoji: '🎯', builtin: true,
+    items: ['深蹲+摸地','跳跃+转身','侧滑步+出拳','原地跑+拍手'],
+  },
+  number: {
+    label: '🔢 数字指令', emoji: '🔢', builtin: true,
+    items: ['做3个深蹲','高抬腿5次','向左移动2步','原地跳4下'],
+  },
+  visual: {
+    label: '🎨 颜色/视觉', emoji: '🎨', builtin: true,
+    // 特殊：视觉类指令，有 action 字段
+    items: [
+      { text: '屏幕变红时蹲下', action: 'red' },
+      { text: '出现箭头对应方向移动', action: 'arrow' },
+      { text: '数字出现时做对应次数动作', action: 'number_show' },
+      { text: '闪烁时快速拍手', action: 'flash' },
+    ],
+  },
+};
+
+// ============================================================
+//  状态
+// ============================================================
+const STORAGE_KEY = 'reaction_trainer_libs_v2';
+
+let libEnabled = {};
+let customLibs = {};
+let expandedLib = null;
+
+const state = {
+  running: false,
+  timer: null,
+  voiceTimer: null,
+  voiceRate: 1.0,
+  cmdCount: 0,
+  minSec: 2,
+  maxSec: 4,
+  lastCmd: null,
+  visualActive: false,
+};
+
+const synth = window.speechSynthesis;
+
+// ============================================================
+//  持久化
+// ============================================================
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.libEnabled) libEnabled = d.libEnabled;
+      if (d.customLibs) customLibs = d.customLibs;
+    }
+  } catch(e) {}
+  for (const id of Object.keys(BUILTIN_LIBS)) {
+    if (libEnabled[id] === undefined) libEnabled[id] = true;
+  }
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ libEnabled, customLibs })); } catch(e) {}
+}
+
+// ============================================================
+//  获取指令
+// ============================================================
+function getAllEnabledCommands() {
+  const result = [];
+  for (const [id, enabled] of Object.entries(libEnabled)) {
+    if (!enabled) continue;
+    if (BUILTIN_LIBS[id]) {
+      for (const item of BUILTIN_LIBS[id].items) {
+        if (typeof item === 'string') {
+          result.push({ text: item, emoji: BUILTIN_LIBS[id].emoji || '⚡' });
+        } else {
+          // 视觉类特殊指令
+          result.push({
+            text: item.text,
+            emoji: BUILTIN_LIBS[id].emoji || '🎨',
+            visualAction: item.action,
+          });
+        }
+      }
+    } else if (customLibs[id]) {
+      for (const text of customLibs[id].items) {
+        result.push({ text, emoji: customLibs[id].emoji || '🎯' });
+      }
+    }
+  }
+  return result;
+}
+
+// ============================================================
+//  语音
+// ============================================================
+function speakText(text) {
+  if (synth.speaking) synth.cancel();
+  const clean = text.replace(/[➕＋\+]\s*/g, '加').replace(/\s*\+\s*/g, '加');
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.lang = 'zh-CN';
+  utter.rate = state.voiceRate;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
+  const voices = synth.getVoices();
+  const zhVoice = voices.find(v => v.lang.startsWith('zh'));
+  if (zhVoice) utter.voice = zhVoice;
+  const ind = document.getElementById('voiceIndicator');
+  const lbl = document.getElementById('voiceLabel');
+  utter.onstart = () => { ind.classList.add('speaking'); lbl.textContent = '🔊 朗读中'; };
+  utter.onend = () => { ind.classList.remove('speaking'); lbl.textContent = '🔊 语音就绪'; };
+  utter.onerror = () => { ind.classList.remove('speaking'); lbl.textContent = '🔊 语音就绪'; };
+  synth.speak(utter);
+}
+
+// ============================================================
+//  视觉效果
+// ============================================================
+const elStage = document.getElementById('stage');
+
+function applyVisualEffect(cmd) {
+  if (!cmd.visualAction) return;
+
+  const action = cmd.visualAction;
+
+  // 清除之前的效果
+  clearVisualEffect();
+
+  switch (action) {
+    case 'red':
+      elStage.classList.add('bg-red');
+      state.visualActive = true;
+      // 2秒后恢复
+      state.voiceTimer = setTimeout(() => {
+        elStage.classList.remove('bg-red');
+        state.visualActive = false;
+      }, 2000);
+      break;
+
+    case 'arrow': {
+      // 8个方向
+      const dirs = ['⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️'];
+      const labels = ['向上','向右上','向右','向右下','向下','向左下','向左','向左上'];
+      const idx = Math.floor(Math.random() * dirs.length);
+      const overlay = document.createElement('div');
+      overlay.className = 'arrow-overlay';
+      overlay.id = 'arrowOverlay';
+      overlay.innerHTML = `<span class="big-arrow">${dirs[idx]}</span>`;
+      document.body.appendChild(overlay);
+      state.visualActive = true;
+
+      // 同时修改指令文本为具体方向
+      const textSpan = document.querySelector('.cmd-text');
+      if (textSpan) textSpan.textContent = `向${labels[idx]}移动`;
+
+      state.voiceTimer = setTimeout(() => {
+        const o = document.getElementById('arrowOverlay');
+        if (o) o.remove();
+        state.visualActive = false;
+      }, 2000);
+      break;
+    }
+
+    case 'number_show': {
+      const num = Math.floor(Math.random() * 8) + 2; // 2~9
+      const overlay = document.createElement('div');
+      overlay.className = 'arrow-overlay';
+      overlay.id = 'numberOverlay';
+      overlay.style.background = 'rgba(0,0,0,.5)';
+      overlay.innerHTML = `<span class="big-arrow" style="font-size:160px">${num}</span>`;
+      document.body.appendChild(overlay);
+      state.visualActive = true;
+
+      const textSpan = document.querySelector('.cmd-text');
+      if (textSpan) textSpan.textContent = `${num} 个！快做！`;
+
+      state.voiceTimer = setTimeout(() => {
+        const o = document.getElementById('numberOverlay');
+        if (o) o.remove();
+        state.visualActive = false;
+      }, 2500);
+      break;
+    }
+
+    case 'flash':
+      elStage.classList.add('bg-flash');
+      state.visualActive = true;
+      state.voiceTimer = setTimeout(() => {
+        elStage.classList.remove('bg-flash');
+        state.visualActive = false;
+      }, 1200);
+      break;
+  }
+}
+
+function clearVisualEffect() {
+  if (state.voiceTimer) { clearTimeout(state.voiceTimer); state.voiceTimer = null; }
+  elStage.classList.remove('bg-red','bg-blue','bg-green','bg-yellow','bg-flash');
+  const o1 = document.getElementById('arrowOverlay');
+  const o2 = document.getElementById('numberOverlay');
+  if (o1) o1.remove();
+  if (o2) o2.remove();
+  state.visualActive = false;
+}
+
+// ============================================================
+//  核心
+// ============================================================
+const elCommand  = document.getElementById('commandDisplay');
+const elCard     = document.getElementById('commandCard');
+const elBtnStart = document.getElementById('btnStart');
+const elCmdCount = document.getElementById('cmdCount');
+const elMinSlider = document.getElementById('minSlider');
+const elMaxSlider = document.getElementById('maxSlider');
+const elMinDisp  = document.getElementById('minDisplay');
+const elMaxDisp  = document.getElementById('maxDisplay');
+
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function showCommand(cmd) {
+  elCommand.innerHTML = `<span class="emoji-big">${cmd.emoji || '⚡'}</span><span class="cmd-text">${cmd.text}</span>`;
+  elCommand.classList.remove('pop-in');
+  void elCommand.offsetWidth;
+  elCommand.classList.add('pop-in');
+  elCard.classList.add('flash');
+  setTimeout(() => elCard.classList.remove('flash'), 120);
+  if (navigator.vibrate) navigator.vibrate(30);
+
+  // 朗读
+  speakText(cmd.text);
+
+  // 如果是视觉类指令，应用视觉效果
+  if (cmd.visualAction) {
+    applyVisualEffect(cmd);
+  } else {
+    clearVisualEffect();
+  }
+
+  state.cmdCount++;
+  elCmdCount.textContent = state.cmdCount;
+  state.lastCmd = cmd;
+}
+
+function nextCommand() {
+  if (!state.running) return;
+  const cmds = getAllEnabledCommands();
+  if (!cmds.length) { stop(); return; }
+  let cmd = pick(cmds);
+  let tries = 0;
+  while (state.lastCmd && cmd.text === state.lastCmd.text && cmds.length > 1 && tries < 10) {
+    cmd = pick(cmds);
+    tries++;
+  }
+  showCommand(cmd);
+  const delay = rand(state.minSec * 1000, state.maxSec * 1000);
+  state.timer = setTimeout(nextCommand, delay);
+}
+
+function start() {
+  if (state.running) return;
+  state.running = true;
+  state.cmdCount = 0;
+  elCmdCount.textContent = '0';
+
+  const cmds = getAllEnabledCommands();
+  if (!cmds.length) { state.running = false; alert('请至少启用一个指令库！'); return; }
+
+  elBtnStart.textContent = '⏹ 停止';
+  elBtnStart.className = 'btn btn-stop';
+  disableControls(true);
+  nextCommand();
+}
+
+function stop() {
+  state.running = false;
+  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+  if (synth.speaking) synth.cancel();
+  clearVisualEffect();
+
+  document.getElementById('voiceIndicator').classList.remove('speaking');
+  document.getElementById('voiceLabel').textContent = '🔊 语音就绪';
+
+  elBtnStart.textContent = '▶ 开始';
+  elBtnStart.className = 'btn btn-start';
+  disableControls(false);
+
+  elCommand.innerHTML = `<span class="emoji-big">🏁</span><span class="cmd-text">训练结束 · 共 ${state.cmdCount} 个指令</span>`;
+}
+
+function toggleStart() { state.running ? stop() : start(); }
+
+function disableControls(disabled) {
+  const val = disabled ? 'none' : '';
+  document.querySelectorAll('.speed-btn, .voice-speed-btn, .lib-chip').forEach(b => b.style.pointerEvents = val);
+  elMinSlider.disabled = disabled;
+  elMaxSlider.disabled = disabled;
+  document.getElementById('btnAddLib').style.pointerEvents = val;
+  document.getElementById('btnAddLib').style.opacity = disabled ? '.4' : '1';
+}
+
+// ============================================================
+//  速度
+// ============================================================
+function applySpeed(speed) {
+  const map = {
+    'very-slow': [5, 10],
+    'slow':      [3, 6],
+    'medium':    [2, 4],
+    'fast':      [1.2, 2.5],
+    'insane':    [0.6, 1.5],
+  };
+  const [min, max] = map[speed] || [2, 4];
+  state.minSec = min; state.maxSec = max;
+  elMinSlider.value = min; elMaxSlider.value = max;
+  elMinDisp.textContent = min.toFixed(1) + 's';
+  elMaxDisp.textContent = max.toFixed(1) + 's';
+}
+function syncMin() {
+  let v = parseFloat(elMinSlider.value);
+  const mv = parseFloat(elMaxSlider.value);
+  if (v > mv) v = mv;
+  state.minSec = v; elMinSlider.value = v; elMinDisp.textContent = v.toFixed(1) + 's';
+}
+function syncMax() {
+  let v = parseFloat(elMaxSlider.value);
+  const mv = parseFloat(elMinSlider.value);
+  if (v < mv) v = mv;
+  state.maxSec = v; elMaxSlider.value = v; elMaxDisp.textContent = v.toFixed(1) + 's';
+}
+
+// ============================================================
+//  指令库 UI
+// ============================================================
+function renderLibs() {
+  renderChips();
+  renderDetail();
+  updateActiveCount();
+}
+
+function renderChips() {
+  const grid = document.getElementById('libGrid');
+  let html = '';
+  for (const [id, lib] of Object.entries(BUILTIN_LIBS)) {
+    const on = libEnabled[id] ? 'on' : '';
+    const count = lib.items.length;
+    html += `<button class="lib-chip ${on}" data-libid="${id}">
+      ${lib.emoji} ${lib.label}
+      <span class="chip-badge">${count}</span>
+      <span class="expand-icon" style="font-size:9px;opacity:.4;margin-left:1px">✎</span>
+    </button>`;
+  }
+  for (const [id, lib] of Object.entries(customLibs)) {
+    const on = libEnabled[id] ? 'on' : '';
+    html += `<button class="lib-chip custom-chip ${on}" data-libid="${id}">
+      ${lib.emoji || '📦'} ${lib.label}
+      <span class="chip-badge">${lib.items.length}</span>
+      <span class="expand-icon" style="font-size:9px;opacity:.4;margin-left:1px">✎</span>
+    </button>`;
+  }
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.lib-chip').forEach(chip => {
+    chip.addEventListener('click', e => {
+      if (state.running) return;
+      const id = chip.dataset.libid;
+      if (e.target.classList.contains('expand-icon')) {
+        expandedLib = expandedLib === id ? null : id;
+        renderLibs();
+        return;
+      }
+      libEnabled[id] = !libEnabled[id];
+      saveState();
+      renderLibs();
+    });
+  });
+}
+
+function renderDetail() {
+  const detail = document.getElementById('libDetail');
+  if (!expandedLib) { detail.classList.remove('open'); detail.innerHTML = ''; return; }
+  detail.classList.add('open');
+  const id = expandedLib;
+  let lib = BUILTIN_LIBS[id] || customLibs[id];
+  if (!lib) { detail.innerHTML = ''; return; }
+  const isBuiltin = !!BUILTIN_LIBS[id];
+  const enabled = libEnabled[id];
+
+  let itemsHtml = '';
+  for (let i = 0; i < lib.items.length; i++) {
+    const item = lib.items[i];
+    const text = typeof item === 'string' ? item : item.text;
+    itemsHtml += `<span class="cmd-item">${text}<button class="del-cmd" data-libid="${id}" data-idx="${i}">✕</button></span>`;
+  }
+
+  let deleteBtn = '';
+  if (!isBuiltin) {
+    deleteBtn = `<button class="lib-chip" style="border-color:var(--danger);color:var(--danger);background:transparent;font-size:10px;padding:2px 7px;margin-top:3px" id="deleteLibBtn">🗑️ 删除此库</button>`;
+  }
+
+  detail.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+      <button class="lib-chip ${enabled?'on':''}" data-toggle="1" style="font-size:10px;padding:2px 7px">
+        ${enabled ? '✅ 已启用' : '⭕ 已停用'}
+      </button>
+      <span style="font-size:10px;color:var(--text-dim)">共 ${lib.items.length} 条</span>
+    </div>
+    <div class="cmd-list">${itemsHtml}</div>
+    <div class="add-cmd-row">
+      <input id="addCmdInput" placeholder="输入新指令..." maxlength="40">
+      <button id="addCmdBtn">＋ 添加</button>
+    </div>
+    ${deleteBtn}
+  `;
+
+  detail.querySelector('[data-toggle]')?.addEventListener('click', () => {
+    if (state.running) return;
+    libEnabled[id] = !libEnabled[id]; saveState(); renderLibs();
+  });
+  detail.querySelectorAll('.del-cmd').forEach(btn => {
+    btn.addEventListener('click', e => {
+      if (state.running) return;
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      if (BUILTIN_LIBS[id]) BUILTIN_LIBS[id].items.splice(idx, 1);
+      else if (customLibs[id]) { customLibs[id].items.splice(idx, 1); saveState(); }
+      renderLibs();
+    });
+  });
+  const input = detail.querySelector('#addCmdInput');
+  const addBtn = detail.querySelector('#addCmdBtn');
+  function addItem() {
+    const text = input.value.trim();
+    if (!text) return;
+    if (BUILTIN_LIBS[id]) BUILTIN_LIBS[id].items.push(text);
+    else if (customLibs[id]) { customLibs[id].items.push(text); saveState(); }
+    input.value = ''; renderLibs();
+  }
+  addBtn.addEventListener('click', addItem);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') addItem(); });
+
+  const delBtn = detail.querySelector('#deleteLibBtn');
+  if (delBtn) {
+    delBtn.addEventListener('click', () => {
+      if (state.running) return;
+      if (!confirm(`删除「${customLibs[id].label}」指令库？`)) return;
+      delete customLibs[id]; delete libEnabled[id]; expandedLib = null;
+      saveState(); renderLibs();
+    });
+  }
+}
+
+function updateActiveCount() {
+  const all = getAllEnabledCommands();
+  document.getElementById('libActiveCount').textContent = `已选 ${all.length} 条`;
+}
+
+function createCustomLib() {
+  if (state.running) return;
+  const name = prompt('给新指令库起个名字（如：我的核心动作）');
+  if (!name || !name.trim()) return;
+  const emoji = prompt('选一个图标（输入一个 emoji，如 🏋️）') || '📦';
+  const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  customLibs[id] = { label: name.trim(), emoji, items: [] };
+  libEnabled[id] = true;
+  expandedLib = id;
+  saveState();
+  renderLibs();
+  setTimeout(() => {
+    const d = document.getElementById('libDetail');
+    if (d) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 100);
+}
+
+// ============================================================
+//  事件
+// ============================================================
+elBtnStart.addEventListener('click', toggleStart);
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); toggleStart(); }
+});
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.running) return;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applySpeed(btn.dataset.speed);
+  });
+});
+
+document.querySelectorAll('.voice-speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.running) return;
+    document.querySelectorAll('.voice-speed-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.voiceRate = parseFloat(btn.dataset.rate);
+  });
+});
+
+elMinSlider.addEventListener('input', syncMin);
+elMaxSlider.addEventListener('input', syncMax);
+document.getElementById('btnAddLib').addEventListener('click', createCustomLib);
+document.addEventListener('dblclick', e => e.preventDefault());
+
+// ============================================================
+//  初始化
+// ============================================================
+loadSaved();
+renderLibs();
+synth.getVoices();
+if (synth.onvoiceschanged !== undefined) {
+  synth.onvoiceschanged = () => synth.getVoices();
+}
+
+console.log('⚡ 快速反应训练 — 视觉触发版');
+console.log('Space = 开始/停止');
+</script>
+</body>
+</html>
