@@ -1,10 +1,10 @@
 const CACHE_NAME = 'reaction-trainer-v1';
 const ASSETS = [
-  '/reaction-trainer/',
-  '/reaction-trainer/index.html',
-  '/reaction-trainer/manifest.json',
-  '/reaction-trainer/icons/icon-192.png',
-  '/reaction-trainer/icons/icon-512.png',
+  '/reaction/',
+  '/reaction/index.html',
+  '/reaction/manifest.json',
+  '/reaction/icons/icon-192.svg',
+  '/reaction/icons/icon-512.svg',
 ];
 
 self.addEventListener('install', e => {
