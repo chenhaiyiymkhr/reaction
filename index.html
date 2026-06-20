@@ -526,7 +526,7 @@ function getAllEnabledCommands() {
         if (typeof item === 'string') {
           result.push({ text: item, emoji: BUILTIN_LIBS[id].emoji || '⚡' });
         } else {
-          // 视觉类特殊指令
+// 视觉类特殊指令
           result.push({
             text: item.text,
             emoji: BUILTIN_LIBS[id].emoji || '🎨',
@@ -544,25 +544,90 @@ function getAllEnabledCommands() {
 }
 
 // ============================================================
-//  语音
+//  语音（兼容移动端）
 // ============================================================
+let voiceReady = false;
+let voiceQueue = [];
+
+// 预热语音引擎（iOS 需要用户手势触发第一次）
+function warmupVoice() {
+  if (voiceReady) return;
+  if (!synth) return;
+  // 尝试获取语音列表
+  const v = synth.getVoices();
+  if (v.length > 0) {
+    voiceReady = true;
+    // 发一个 silent utterance 来激活 iOS 语音引擎
+    try {
+      const silent = new SpeechSynthesisUtterance('');
+      silent.volume = 0;
+      synth.speak(silent);
+      setTimeout(() => { if (synth.speaking) synth.cancel(); }, 50);
+    } catch(e) {}
+  }
+}
+
+function getZhVoice() {
+  const voices = synth.getVoices();
+  return voices.find(v => v.lang.startsWith('zh'))
+      || voices.find(v => v.lang === 'zh-CN')
+      || voices.find(v => v.lang === 'zh_TW')
+      || voices.find(v => v.lang.startsWith('chi'))
+      || null;
+}
+
 function speakText(text) {
+  if (!synth) return;
+  // 先取消之前的朗读
   if (synth.speaking) synth.cancel();
+
   const clean = text.replace(/[➕＋\+]\s*/g, '加').replace(/\s*\+\s*/g, '加');
+
   const utter = new SpeechSynthesisUtterance(clean);
   utter.lang = 'zh-CN';
   utter.rate = state.voiceRate;
   utter.pitch = 1.0;
   utter.volume = 1.0;
-  const voices = synth.getVoices();
-  const zhVoice = voices.find(v => v.lang.startsWith('zh'));
+
+  const zhVoice = getZhVoice();
   if (zhVoice) utter.voice = zhVoice;
+
   const ind = document.getElementById('voiceIndicator');
   const lbl = document.getElementById('voiceLabel');
-  utter.onstart = () => { ind.classList.add('speaking'); lbl.textContent = '🔊 朗读中'; };
-  utter.onend = () => { ind.classList.remove('speaking'); lbl.textContent = '🔊 语音就绪'; };
-  utter.onerror = () => { ind.classList.remove('speaking'); lbl.textContent = '🔊 语音就绪'; };
-  synth.speak(utter);
+  utter.onstart = () => {
+    ind.classList.add('speaking');
+    lbl.textContent = '🔊 朗读中';
+  };
+  utter.onend = () => {
+    ind.classList.remove('speaking');
+    lbl.textContent = '🔊 语音就绪';
+  };
+  utter.onerror = (e) => {
+    ind.classList.remove('speaking');
+    lbl.textContent = '🔊 语音就绪';
+    // iOS 上有时会报错但不影响
+  };
+
+  try {
+    synth.speak(utter);
+  } catch(e) {
+    // iOS 上如果引擎还没就绪，静默失败
+    ind.classList.remove('speaking');
+    lbl.textContent = '🔊 语音就绪';
+  }
+}
+
+// 监听 voices 加载（移动端经常异步加载）
+if (synth.addEventListener) {
+  synth.addEventListener('voiceschanged', () => {
+    const v = synth.getVoices();
+    if (v.length > 0) voiceReady = true;
+  });
+} else if (synth.onvoiceschanged !== undefined) {
+  synth.onvoiceschanged = () => {
+    const v = synth.getVoices();
+    if (v.length > 0) voiceReady = true;
+  };
 }
 
 // ============================================================
@@ -714,6 +779,9 @@ function start() {
   state.running = true;
   state.cmdCount = 0;
   elCmdCount.textContent = '0';
+
+  // 每次开始前预热语音（移动端需要）
+  warmupVoice();
 
   const cmds = getAllEnabledCommands();
   if (!cmds.length) { state.running = false; alert('请至少启用一个指令库！'); return; }
@@ -961,9 +1029,19 @@ document.addEventListener('dblclick', e => e.preventDefault());
 // ============================================================
 loadSaved();
 renderLibs();
-synth.getVoices();
-if (synth.onvoiceschanged !== undefined) {
-  synth.onvoiceschanged = () => synth.getVoices();
+
+// 语音初始化：立即尝试加载，然后监听变化
+if (synth) {
+  // 立即获取一次（某些浏览器同步返回）
+  const v = synth.getVoices();
+  if (v.length > 0) voiceReady = true;
+  // 异步监听
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = () => {
+      const voices = synth.getVoices();
+      if (voices.length > 0) voiceReady = true;
+    };
+  }
 }
 
 // 注册 Service Worker（PWA）
