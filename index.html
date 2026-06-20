@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ff6b35">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>⚡ 快速反应训练</title>
 <style>
   :root {
@@ -958,6 +964,11 @@ renderLibs();
 synth.getVoices();
 if (synth.onvoiceschanged !== undefined) {
   synth.onvoiceschanged = () => synth.getVoices();
+}
+
+// 注册 Service Worker（PWA）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 console.log('⚡ 快速反应训练 — 视觉触发版');

@@ -1,0 +1,15 @@
+{
+  "name": "⚡ 快速反应训练",
+  "short_name": "反应训练",
+  "description": "快速反应力训练 — 身体启动 · 神经激活 · 瞬间决策",
+  "start_url": "/reaction-trainer/",
+  "scope": "/reaction-trainer/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1a",
+  "theme_color": "#ff6b35",
+  "icons": [
+    { "src": "icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ]
+}
